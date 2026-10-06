@@ -1,0 +1,48 @@
+<% @page_title = "Approvals" %>
+
+<%= render "layouts/shared/page_header", title: @page_title, icon: "check-circle",
+      description: "Changes made through the API, the cms CLI or MCP wait here. Open one to compare it with what’s live, edit it, and approve it." %>
+
+<%= render "layouts/shared/status_links", param: :state, current: @state == "pending" ? "" : @state,
+      options: [["Waiting", nil, @counts["pending"]], ["Decided", "decided", @counts["decided"]]] %>
+
+<% if @changes.any? %>
+  <section class="panel shadow center index-table">
+    <table class="data-table" data-controller="pagination" data-pagination-paginate-on-intersection-value="true" data-pagination-discard-frame-value="true">
+      <thead>
+        <tr>
+          <th>Change</th>
+          <th>From</th>
+          <th>State</th>
+          <th>Proposed</th>
+        </tr>
+      </thead>
+      <tbody id="<%= pagination_frame_id_for(:approval_rows, @page.number) %>">
+        <% @changes.each do |change| %>
+          <%# herb:key change.id %>
+          <tr id="<%= dom_id(change) %>" data-filter-target="item">
+            <td>
+              <%= link_to change.summary, approvals_change_path(change), class: "txt-ink font-weight-bold" %>
+              <% if change.pending? && change.stale? %>
+                <div class="txt-x-small txt-negative">Changed since it was proposed</div>
+              <% end %>
+            </td>
+            <td class="txt-subtle"><%= change.proposed_by %></td>
+            <td><%= status_tag change.state.capitalize %></td>
+            <td class="txt-subtle txt-small"><%= time_ago_tag change.created_at %></td>
+          </tr>
+        <% end %>
+        <%= table_next_page_row :approval_rows, @page, columns: 4 %>
+      </tbody>
+    </table>
+  </section>
+<% else %>
+  <div class="panel panel--centered center flex flex-column gap-half">
+    <% if @state == "pending" %>
+      <p class="txt-medium margin-none">Nothing waiting for approval.</p>
+      <p class="txt-small txt-subtle margin-none">When an agent changes a page, an entry or a global through the API, the change lands here instead of going live.</p>
+    <% else %>
+      <p class="txt-medium margin-none">Nothing decided yet.</p>
+    <% end %>
+  </div>
+<% end %>

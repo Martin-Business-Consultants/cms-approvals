@@ -1,0 +1,73 @@
+/* Approvals (cms-plugins/approvals): a change's review, live beside proposed. */
+@layer components {
+  .approval {
+    --panel-padding: var(--block-space);
+    --panel-size: 100%;
+  }
+
+  /* Two columns, a row per field: its label across both, then live | proposed. */
+  .approval__grid {
+    display: grid;
+    gap: var(--block-space-half) var(--block-space);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    text-align: start;
+  }
+
+  .approval__head {
+    border-block-end: 1px solid var(--color-ink-lighter);
+    color: var(--color-ink-dark);
+    font-size: var(--text-x-small);
+    font-weight: 700;
+    padding-block-end: 0.35em;
+    text-transform: uppercase;
+  }
+
+  .approval__label,
+  .approval__diff {
+    grid-column: 1 / -1;
+  }
+
+  .approval__label {
+    align-items: center;
+    display: flex;
+    font-size: var(--text-small);
+    font-weight: 700;
+    gap: 0.5em;
+    margin-block-start: var(--block-space-half);
+  }
+
+  .approval__cell {
+    border-radius: var(--radius);
+    min-inline-size: 0;
+  }
+
+  .approval__cell--removed {
+    background-color: oklch(var(--lch-red-lightest));
+  }
+
+  .approval__cell--added {
+    background-color: oklch(var(--lch-green-lightest));
+    padding: 0.25em;
+  }
+
+  .approval__value {
+    font-family: var(--font-mono);
+    font-size: var(--text-x-small);
+    margin: 0;
+    max-block-size: 24rem;
+    overflow: auto;
+    padding: 0.5em;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .approval__reject {
+    display: contents;
+  }
+
+  @media (max-width: 800px) {
+    .approval__grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}

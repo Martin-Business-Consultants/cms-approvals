@@ -1,0 +1,95 @@
+<% @page_title = "Approval" %>
+<%# One change: what's live in the first column, the proposal in the second,
+    field by field, with what differs marked. The proposal is a form: edit it
+    as needed, then approve it from the sidebar, which puts it live. %>
+<% edits = @edits || {} %>
+<% decidable = @change.pending? && Current.user.can?("approvals:decide") && Current.user.can?(@change.capability_to_decide) %>
+<% deleting = @change.action == "destroy" %>
+<% fields = @change.fields %>
+
+<%= parent_page "Approvals", approvals_changes_path %>
+<%= render "layouts/shared/page_header", title: @change.summary %>
+
+<div class="content-form content-form--thirds">
+  <div class="content-form__main flex flex-column gap">
+    <% if @change.pending? && @change.stale? %>
+      <p class="notice notice--error txt-small margin-none">The live <%= @change.kind %> has changed since this was proposed. Check the first column — approving replaces what’s there with the second.</p>
+    <% end %>
+
+    <%= form_with url: approvals_change_approval_path(@change), id: "approval_form", class: "panel shadow approval" do |form| %>
+      <div class="approval__grid">
+        <div class="approval__head">Live now</div>
+        <div class="approval__head"><%= @change.pending? ? "Proposed" : "As approved" %></div>
+
+        <% fields.each do |field| %>
+          <%# herb:key field.name %>
+          <% changed = field.changed? %>
+          <div class="approval__label">
+            <%= field.label %>
+            <% if changed %><%= status_tag "Changed", highlight: true %><% end %>
+          </div>
+
+          <div class="<%= class_names("approval__cell approval__cell--live", "approval__cell--removed": changed) %>">
+            <% if @change.action == "create" %>
+              <span class="txt-subtle txt-small">New <%= @change.kind %></span>
+            <% elsif field.live.blank? %>
+              <span class="txt-subtle txt-small">—</span>
+            <% else %>
+              <pre class="approval__value"><%= field.json? ? JSON.pretty_generate(field.live) : field.live %></pre>
+            <% end %>
+          </div>
+
+          <div class="<%= class_names("approval__cell", "approval__cell--added": changed) %>">
+            <% if deleting %>
+              <span class="txt-negative txt-small">Deleted</span>
+            <% elsif decidable %>
+              <% value = edits.fetch(field.name) { field.json? ? (field.proposed.nil? ? "" : JSON.pretty_generate(field.proposed)) : field.proposed.to_s } %>
+              <% if field.kind == "text" %>
+                <%= text_field_tag "fields[#{field.name}]", value, class: "input full-width", aria: { label: field.label } %>
+              <% else %>
+                <%= text_area_tag "fields[#{field.name}]", value, rows: [value.to_s.lines.size + 1, 4].max.clamp(4, 24),
+                      class: class_names("input full-width", "font-mono txt-small": field.json?), aria: { label: field.label } %>
+              <% end %>
+            <% elsif field.proposed.blank? %>
+              <span class="txt-subtle txt-small">—</span>
+            <% else %>
+              <pre class="approval__value"><%= field.json? ? JSON.pretty_generate(field.proposed) : field.proposed %></pre>
+            <% end %>
+          </div>
+
+          <% if changed && !deleting && @change.action != "create" %>
+            <% diff = ContentDiff.new({field.name => field.proposed}, {field.name => field.live}).call[:fields].first %>
+            <details class="approval__diff">
+              <summary class="txt-small txt-link">What changed in <%= field.label.downcase %></summary>
+              <%= render "versions/field", field: diff %>
+            </details>
+          <% end %>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+
+  <aside class="content-form__aside flex flex-column gap">
+    <%= postbox "approval-decision", "Decision", klass: "publish-box" do %>
+      <div class="publish-box__misc flex flex-column gap-half txt-small">
+        <span>From <strong><%= @change.proposed_by %></strong>, <%= time_ago_tag @change.created_at %></span>
+        <span><%= pluralize(@change.changed_fields.size, "field") %> changed</span>
+        <% if @change.other_attributes.any? %>
+          <span class="txt-subtle">Also sets <%= @change.other_attributes.keys.map(&:humanize).to_sentence.downcase %>, as proposed.</span>
+        <% end %>
+        <% unless @change.pending? %>
+          <span><%= status_tag @change.state.capitalize %> <%= "by #{@change.decided_by.name.presence || @change.decided_by.email}" if @change.decided_by %> <%= time_ago_tag @change.decided_at if @change.decided_at %></span>
+        <% end %>
+        <% if @change.pending? && !decidable %>
+          <span class="txt-subtle">Your role can’t approve this: it takes <code><%= @change.capability_to_decide %></code>.</span>
+        <% end %>
+      </div>
+      <% if decidable %>
+        <div class="publish-box__major">
+          <%= button_to "Reject", approvals_change_rejection_path(@change), class: "btn txt-small txt-negative", form: { class: "approval__reject" } %>
+          <button type="submit" form="approval_form" class="btn btn--link publish-box__primary"><%= deleting ? "Approve and delete" : "Approve and put live" %></button>
+        </div>
+      <% end %>
+    <% end %>
+  </aside>
+</div>
