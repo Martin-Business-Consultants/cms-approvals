@@ -1,6 +1,6 @@
 # Approvals
 
-A plugin for the CMS (see `docs/plugins.md` in [opencms](https://github.com/Martin-Business-Consultants/opencms)).
+A plugin for the CMS (see `docs/plugins.md` in [LibrePublish CMS](https://github.com/Martin-Business-Consultants/cmsv2)).
 
 Content changes made through the API with a token — an agent's work through the
 `cms` CLI or MCP — wait in **Approvals** instead of going live. The API answers
