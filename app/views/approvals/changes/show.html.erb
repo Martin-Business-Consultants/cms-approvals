@@ -30,7 +30,12 @@
   <div class="approvals__grid">
     <div class="approvals__head">Live now</div>
     <div class="approvals__head">
-      <span><%= @change.pending? ? "Proposed" : "As #{@change.state}" %></span>
+      <span>
+        <%= @change.pending? ? "Proposed" : "As #{@change.state}" %>
+        <% if decidable then %>
+          <span class="approvals__editable" title="Change the proposal below before you approve it">Editable</span>
+        <% end %>
+      </span>
       <% if decidable then %>
         <span class="flex items-center gap-2">
           <%= button_to "Reject", approvals_change_rejection_path(@change), class: ui(:button, :small, "text-red-700"), form_class: "contents" %>
