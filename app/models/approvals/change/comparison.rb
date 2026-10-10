@@ -18,20 +18,22 @@ module Approvals::Change::Comparison
     def changed? = Approvals::Change.normalize(live) != Approvals::Change.normalize(proposed)
     def json? = kind == "json"
 
-    # An object of plain values (SEO, fields, a global's data) is compared
-    # and edited key by key; anything else (blocks) as a whole.
+    # An object (SEO, fields, a global's data) is compared and edited key by
+    # key, a key holding more than a plain value (SEO's JSON-LD) as JSON of
+    # its own; anything else (blocks) as a whole.
     def by_key?
-      json? && [live, proposed].compact.all? { it.is_a?(Hash) } && [live, proposed].compact.any? &&
-        [live, proposed].compact.flat_map(&:values).none? { it.is_a?(Hash) || it.is_a?(Array) }
+      sides = [live, proposed].compact
+      json? && sides.any? && sides.all? { it.is_a?(Hash) }
     end
 
-    # [key, label, live, proposed, changed?] for each key either side has.
+    # [key, label, live, proposed, changed?, nested?] for each key either side has.
     def keys
       live_hash = live.to_h.stringify_keys
       proposed_hash = proposed.to_h.stringify_keys
       (live_hash.keys | proposed_hash.keys).map do |key|
-        [key, "#{label} › #{key.humanize}", live_hash[key], proposed_hash[key],
-          Approvals::Change.normalize(live_hash[key]) != Approvals::Change.normalize(proposed_hash[key])]
+        nested = [live_hash[key], proposed_hash[key]].any? { it.is_a?(Hash) || it.is_a?(Array) }
+        [key, "#{label} › #{Approvals::Change.key_label(key)}", live_hash[key], proposed_hash[key],
+          Approvals::Change.normalize(live_hash[key]) != Approvals::Change.normalize(proposed_hash[key]), nested]
       end
     end
   end
@@ -42,6 +44,10 @@ module Approvals::Change::Comparison
     def fields_of(record)
       editable_fields(record.class.name).to_h { |name, _| [name, record.public_send(name)] }
     end
+
+    # A key as people read it: JSON-LD, not "Json ld".
+    def key_label(key) = {"json_ld" => "JSON-LD", "og_image_id" => "Share image", "og_title" => "Share title",
+      "og_description" => "Share description", "og_type" => "Open Graph type"}.fetch(key.to_s) { key.to_s.humanize }
 
     def normalize(value)
       case value

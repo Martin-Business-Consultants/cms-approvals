@@ -119,6 +119,27 @@ RSpec.describe "The Approvals plugin", type: :request do
       expect(page.reload.seo).to include("meta_title" => "About", "meta_description" => "Edited by a person.")
     end
 
+    it "shows a proposal's JSON-LD as its own block beside the SEO keys, and takes it as edited" do
+      page = live_page
+      page.update!(seo: {"meta_title" => "About", "meta_description" => "Who we are."})
+      json_ld = {"@context" => "https://schema.org", "@type" => "AboutPage", "name" => "About"}
+      patch "/api/pages/about", params: {page: {seo: {"meta_title" => "About", "meta_description" => "Who we are.", "json_ld" => json_ld}}},
+        headers: token, as: :json
+      change = Approvals::Change.last
+      sign_in_as admin
+
+      get approvals_change_path(change)
+      expect(response.body).to include("SEO › JSON-LD", "&quot;@type&quot;: &quot;AboutPage&quot;")
+      expect(response.body).not_to include("SEO › Meta description")
+
+      post approvals_change_approval_path(change), params: {fields: {seo: {json_ld: "{nope"}}}
+      expect(response.body).to include("SEO › JSON-LD isn&#39;t valid JSON")
+
+      edited = json_ld.merge("name" => "About the team").to_json
+      post approvals_change_approval_path(change), params: {fields: {seo: {json_ld: edited}}}
+      expect(page.reload.seo).to include("meta_description" => "Who we are.", "json_ld" => json_ld.merge("name" => "About the team"))
+    end
+
     it "creates and deletes on approval" do
       Collection.create!(slug: "posts", name: "Posts", schema: {"fields" => []})
       Global.create!(slug: "footer", name: "Footer", schema: {"fields" => []}, data: {})

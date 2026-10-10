@@ -42,12 +42,25 @@ module Approvals::Change::Decidable
       if typed[name] == "json" && value.is_a?(Hash)
         # Some of an object's keys, edited one by one (an SEO description),
         # over the rest of what was proposed.
-        [name, proposed[name].to_h.stringify_keys.merge(value.to_h.stringify_keys.transform_values { it.to_s.gsub("\r\n", "\n") })]
+        base = proposed[name].to_h.stringify_keys
+        [name, base.merge(value.to_h.stringify_keys.to_h { |key, typed| [key, edited_key(name, key, base[key], typed)] })]
       else
         [name, typed[name] == "json" ? parse_json(name, value) : value.to_s.gsub("\r\n", "\n")]
       end
     end
     payload.merge(edited)
+  end
+
+  # One key of an object, as typed: JSON again for one that held more than a
+  # plain value (JSON-LD), and nothing for one emptied.
+  def edited_key(name, key, before, typed)
+    text = typed.to_s.gsub("\r\n", "\n")
+    return text unless before.is_a?(Hash) || before.is_a?(Array) || text.lstrip.start_with?("{", "[")
+    return nil if text.strip.empty?
+
+    JSON.parse(text)
+  rescue JSON::ParserError => e
+    raise InvalidEdit, "#{(name == "seo") ? "SEO" : name.humanize} › #{self.class.key_label(key)} isn't valid JSON: #{e.message.lines.first.strip}"
   end
 
   def parse_json(name, value)

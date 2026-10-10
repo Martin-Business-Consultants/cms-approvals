@@ -43,31 +43,32 @@
       <% shown.each do |field| %>
         <%# herb:key field.name %>
         <% if field.by_key? && !deleting %>
-          <% field.keys.select { |row| row.last || creating }.each do |key, key_label, live, proposed, changed| %>
+          <% field.keys.select { |row| row[4] || creating }.each do |key, key_label, live, proposed, changed, nested| %>
             <%# herb:key key %>
-            <% live_classes = class_names("approvals__cell approvals__cell--live", "approvals__cell--removed": changed && !creating) %>
-            <% proposed_classes = class_names("approvals__cell", "approvals__cell--added": changed) %>
+            <% live_classes = class_names("approvals__cell approvals__cell--live", "approvals__cell--removed": changed && !creating && live.present?) %>
+            <% proposed_classes = class_names("approvals__cell", "approvals__cell--added": changed && proposed.present?) %>
             <div class="approvals__label"><%= key_label %></div>
             <div class="<%= live_classes %>">
               <% if creating %>
                 <span class="text-sm text-gray-400">New <%= @change.kind %></span>
               <% else %>
-                <%= render "approvals/changes/value", value: live %>
+                <%= render "approvals/changes/value", value: live, json: nested %>
               <% end %>
             </div>
             <div class="<%= proposed_classes %>">
               <% if decidable then %>
-                <% typed = edits.dig(field.name, key) || proposed.to_s %>
-                <% height = (typed.length.fdiv(60).ceil + 1).clamp(2, 8) %>
-                <%= text_area_tag "fields[#{field.name}][#{key}]", typed, rows: height, class: "w-full", aria: { label: key_label } %>
+                <% typed = edits.dig(field.name, key) || (nested ? (proposed.nil? ? "" : JSON.pretty_generate(proposed)) : proposed.to_s) %>
+                <% height = nested ? (typed.lines.size + 1).clamp(4, 30) : (typed.length.fdiv(60).ceil + 1).clamp(2, 8) %>
+                <% input_classes = class_names("w-full", "font-mono text-xs": nested) %>
+                <%= text_area_tag "fields[#{field.name}][#{key}]", typed, rows: height, class: input_classes, aria: { label: key_label } %>
               <% else %>
-                <%= render "approvals/changes/value", value: proposed %>
+                <%= render "approvals/changes/value", value: proposed, json: nested %>
               <% end %>
             </div>
           <% end %>
         <% else %>
-          <% live_classes = class_names("approvals__cell approvals__cell--live", "approvals__cell--removed": field.changed? && !creating) %>
-          <% proposed_classes = class_names("approvals__cell", "approvals__cell--added": field.changed? && !deleting) %>
+          <% live_classes = class_names("approvals__cell approvals__cell--live", "approvals__cell--removed": field.changed? && !creating && field.live.present?) %>
+          <% proposed_classes = class_names("approvals__cell", "approvals__cell--added": field.changed? && !deleting && field.proposed.present?) %>
           <div class="approvals__label"><%= field.label %></div>
           <div class="<%= live_classes %>">
             <% if creating %>
