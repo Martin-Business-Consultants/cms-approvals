@@ -31,7 +31,7 @@ module Approvals::Change::Holdable
   # What the API answers in place of the record: it's waiting, and where.
   def held_response
     {status: "pending_approval", message: "Held for approval: a person reviews it before it goes live.",
-     approval: {id: id, action: action, summary: summary, state: state, path: "/approvals/#{id}",
+     approval: {id: id, action: action, summary: summary, state: state, path: Rails.application.routes.url_helpers.approvals_change_path(id),
                 api_path: "/api/approvals/#{id}"}}
   end
 end

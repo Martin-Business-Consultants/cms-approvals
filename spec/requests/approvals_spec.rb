@@ -88,8 +88,8 @@ RSpec.describe "The Approvals plugin", type: :request do
       expect(response.body).to include("Update page “About us”", agent.name.to_s)
 
       get approvals_change_path(change)
-      expect(response.body).to include("Live now", "Proposed", "Approve and put live", "What changed in title")
-      expect(response.body).to include("About", "About us")
+      expect(response.body).to include("Live now", "Proposed", "Approve and put live", "Back to the list", %(href="#{approvals_changes_path}"))
+      expect(response.body).to include("About", "About us", "approvals__cell--added")
 
       post approvals_change_approval_path(change), params: {fields: {title: "About our team", blocks: change.payload["blocks"].to_json}}
 
@@ -98,6 +98,25 @@ RSpec.describe "The Approvals plugin", type: :request do
       expect(page.blocks.first.dig("data", "body")).to eq("New")
       expect(change.reload).to have_attributes(state: "approved", decided_by: admin)
       expect(AuditLog.where(action: "approval.approved")).to exist
+    end
+
+    it "lists the changes beside a word on what to do, and compares an SEO change key by key" do
+      page = live_page
+      page.update!(seo: {"meta_title" => "About", "meta_description" => "Old words"})
+      patch "/api/pages/about", params: {page: {seo: {"meta_title" => "About", "meta_description" => "A clearer description of the team."}}},
+        headers: token, as: :json
+      change = Approvals::Change.last
+      sign_in_as admin
+
+      get approvals_changes_path
+      expect(response.body).to include("Waiting", "Open a change to compare it", approvals_change_path(change))
+
+      get approvals_change_path(change)
+      expect(response.body).to include("SEO › Meta description", "Old words", "A clearer description of the team.")
+      expect(response.body).not_to include("SEO › Meta title")
+
+      post approvals_change_approval_path(change), params: {fields: {seo: {meta_description: "Edited by a person."}}}
+      expect(page.reload.seo).to include("meta_title" => "About", "meta_description" => "Edited by a person.")
     end
 
     it "creates and deletes on approval" do
@@ -143,7 +162,7 @@ RSpec.describe "The Approvals plugin", type: :request do
 
       get approvals_change_path(Approvals::Change.last)
       expect(response.body).not_to include("Approve and put live")
-      expect(response.body).to include("it takes <code>pages:publish</code>")
+      expect(response.body).to include("<code>pages:publish</code>")
 
       post approvals_change_approval_path(Approvals::Change.last)
       expect(Page.find_by(slug: "about").title).to eq("About")

@@ -37,8 +37,15 @@ module Approvals::Change::Decidable
 
   def attributes_with(edits)
     typed = self.class.editable_fields(subject_type).to_h
+    proposed = fields.to_h { [it.name, it.proposed] }
     edited = edits.to_h.stringify_keys.slice(*typed.keys).to_h do |name, value|
-      [name, typed[name] == "json" ? parse_json(name, value) : value.to_s.gsub("\r\n", "\n")]
+      if typed[name] == "json" && value.is_a?(Hash)
+        # Some of an object's keys, edited one by one (an SEO description),
+        # over the rest of what was proposed.
+        [name, proposed[name].to_h.stringify_keys.merge(value.to_h.stringify_keys.transform_values { it.to_s.gsub("\r\n", "\n") })]
+      else
+        [name, typed[name] == "json" ? parse_json(name, value) : value.to_s.gsub("\r\n", "\n")]
+      end
     end
     payload.merge(edited)
   end

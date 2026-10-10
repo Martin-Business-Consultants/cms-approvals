@@ -4,4 +4,4 @@ json.subject do
   json.id change.subject_id
 end
 json.changed change.changed_fields.map(&:name)
-json.path "/approvals/#{change.id}"
+json.path approvals_change_path(change)

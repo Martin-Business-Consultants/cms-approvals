@@ -10,14 +10,18 @@ module Approvals
 
     initializer "approvals.routes" do |app|
       app.routes.append do
-        scope module: "approvals", as: "approvals" do
-          resources :changes, path: "approvals", only: [:index, :show] do
-            scope module: :changes do
-              resource :approval, only: :create
-              resource :rejection, only: :create
+        # The admin's, under /cms (at the root on a core from before it).
+        admin = proc do
+          scope module: "approvals", as: "approvals" do
+            resources :changes, path: "approvals", only: [:index, :show] do
+              scope module: :changes do
+                resource :approval, only: :create
+                resource :rejection, only: :create
+              end
             end
           end
         end
+        defined?(Cms::PATH) ? scope(path: Cms::PATH, &admin) : admin.call
 
         scope "api", module: "approvals/api", as: "api_approvals", defaults: {format: :json} do
           resources :changes, path: "approvals", only: [:index, :show]
@@ -26,8 +30,8 @@ module Approvals
     end
 
     config.to_prepare do
-      Cms::Plugins.register :approvals, name: "Approvals", version: "1.0.0", author: "Martin Business Consultants",
-        enabled_by_default: false, requires: ">= 1.0",
+      Cms::Plugins.register :approvals, name: "Approvals", version: "1.1.0", author: "Martin Business Consultants",
+        enabled_by_default: false, requires: ">= 1.9",
         description: "Content changes made through the API, the cms CLI or MCP — an agent's work — wait in a " \
                      "list for a person to edit and approve, which puts them live."
 

@@ -17,6 +17,23 @@ module Approvals::Change::Comparison
     def label = {"body_markdown" => "Body", "seo" => "SEO"}.fetch(name) { name.humanize }
     def changed? = Approvals::Change.normalize(live) != Approvals::Change.normalize(proposed)
     def json? = kind == "json"
+
+    # An object of plain values (SEO, fields, a global's data) is compared
+    # and edited key by key; anything else (blocks) as a whole.
+    def by_key?
+      json? && [live, proposed].compact.all? { it.is_a?(Hash) } && [live, proposed].compact.any? &&
+        [live, proposed].compact.flat_map(&:values).none? { it.is_a?(Hash) || it.is_a?(Array) }
+    end
+
+    # [key, label, live, proposed, changed?] for each key either side has.
+    def keys
+      live_hash = live.to_h.stringify_keys
+      proposed_hash = proposed.to_h.stringify_keys
+      (live_hash.keys | proposed_hash.keys).map do |key|
+        [key, "#{label} › #{key.humanize}", live_hash[key], proposed_hash[key],
+          Approvals::Change.normalize(live_hash[key]) != Approvals::Change.normalize(proposed_hash[key])]
+      end
+    end
   end
 
   class_methods do

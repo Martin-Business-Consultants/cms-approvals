@@ -1,38 +1,53 @@
 <% @page_title = "Approvals" %>
 
-<%= render "layouts/shared/page_header", title: @page_title, icon: "check-circle",
-      description: "Changes made through the API, the cms CLI or MCP wait here. Open one to compare it with what’s live, edit it, and approve it." %>
+<%= render "layouts/shared/page_header", title: @page_title,
+      description: "Changes an agent made through the API, the cms CLI or MCP wait here. Open one to compare it with what’s live, edit it, and approve it." %>
 
-<%= render "layouts/shared/status_links", param: :state, current: @state == "pending" ? "" : @state,
-      options: [["Waiting", nil, @counts["pending"]], ["Decided", "decided", @counts["decided"]]] %>
-
-<section class="panel shadow center index-table">
-  <table class="data-table" data-controller="pagination" data-pagination-paginate-on-intersection-value="true" data-pagination-discard-frame-value="true">
-    <thead>
-      <tr>
-        <th>Change</th>
-        <th>From</th>
-        <th>State</th>
-        <th>Proposed</th>
-      </tr>
-    </thead>
-    <tbody id="<%= pagination_frame_id_for(:approval_rows, @page.number) %>">
-      <% @changes.each do |change| %>
-        <%# herb:key change.id %>
-        <tr id="<%= dom_id(change) %>" data-filter-target="item">
-          <td>
-            <%= link_to change.summary, approvals_change_path(change), class: "txt-ink font-weight-bold" %>
-            <% if change.pending? && change.stale? %>
-              <div class="txt-x-small txt-negative">Changed since it was proposed</div>
-            <% end %>
-          </td>
-          <td class="txt-subtle"><%= change.proposed_by %></td>
-          <td><%= status_tag change.state.capitalize %></td>
-          <td class="txt-subtle txt-small"><%= time_ago_tag change.created_at %></td>
-        </tr>
+<div class="approvals grid grid-cols-1 gap-6 lg:grid-cols-2">
+  <section class="<%= ui(:panel, "min-w-0") %>" aria-label="Proposed changes">
+    <nav class="approvals__tabs flex gap-1 border-b border-gray-200 px-4" aria-label="Show">
+      <% [["pending", "Waiting"], ["decided", "Decided"]].each do |state, label| %>
+        <%# herb:key state %>
+        <%= link_to approvals_changes_path(state: (state unless state == "pending")),
+              class: class_names("approvals__tab", "approvals__tab--current": @state == state), aria: { current: (@state == state ? "page" : nil) } do %>
+          <%= label %> <span class="text-gray-500"><%= @counts[state] %></span>
+        <% end %>
       <% end %>
-      <%= table_next_page_row :approval_rows, @page, columns: 4 %>
-      <%= table_empty_row(@state == "pending" ? "Nothing waiting for approval. When an agent changes a page, an entry or a global through the API, the change lands here instead of going live." : "Nothing decided yet.", columns: 4) if @changes.none? %>
-    </tbody>
-  </table>
-</section>
+    </nav>
+    <% if @changes.any? %>
+      <ul class="divide-y divide-gray-100">
+        <% @changes.each do |change| %>
+          <%# herb:key change.id %>
+          <li id="<%= dom_id(change) %>">
+            <%= link_to approvals_change_path(change), class: "approvals__item flex items-start justify-between gap-3 px-4 py-3 hover:bg-gray-50" do %>
+              <span class="flex min-w-0 flex-col gap-0.5">
+                <span class="truncate text-sm font-medium text-gray-900"><%= change.summary %></span>
+                <span class="text-xs text-gray-500">
+                  <%= change.proposed_by %> · <%= time_ago_tag change.created_at %>
+                  <% if change.pending? %> · <%= pluralize(change.changed_fields.size, "field") %><% end %>
+                </span>
+                <% if change.pending? && change.stale? %>
+                  <span class="text-xs text-red-700">The live <%= change.kind %> changed since this was proposed</span>
+                <% end %>
+              </span>
+              <%= status_tag change.state.capitalize %>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    <% else %>
+      <p class="px-4 py-12 text-center text-sm text-gray-500">
+        <%= @state == "pending" ? "Nothing waiting. When an agent changes a page, an entry or a global through the API, the change lands here instead of going live." : "Nothing decided yet." %>
+      </p>
+    <% end %>
+  </section>
+
+  <section class="<%= ui(:panel, "approvals__hint flex flex-col items-center justify-center gap-2 px-6 py-12 text-center") %>" aria-label="Comparison">
+    <%= icon_tag "check-circle", class: "size-8 text-gray-400" %>
+    <p class="text-sm font-medium text-gray-900">Open a change to compare it</p>
+    <p class="max-w-sm text-sm text-gray-500">
+      What’s live now shows here on the left, what’s proposed on the right, field by field, with what differs marked.
+      Edit the proposal if it needs it, then approve it to put it live, or reject it.
+    </p>
+  </section>
+</div>
