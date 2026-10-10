@@ -26,10 +26,10 @@
   </div>
 <% end %>
 
-<div class="<%= ui(:panel, "approvals approvals--compare") %>">
+<div class="<%= ui(:panel) %>">
   <div class="approvals__grid">
-    <div class="approvals__head approvals__head--live">Live now</div>
-    <div class="approvals__head approvals__head--proposed">
+    <div class="approvals__head">Live now</div>
+    <div class="approvals__head">
       <span><%= @change.pending? ? "Proposed" : "As #{@change.state}" %></span>
       <% if decidable then %>
         <span class="flex items-center gap-2">
