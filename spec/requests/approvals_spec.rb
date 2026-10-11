@@ -153,6 +153,22 @@ RSpec.describe "The Approvals plugin", type: :request do
       expect(Global.exists?(slug: "footer")).to be(false)
     end
 
+    # The review form posts every field it shows; one the proposal left out
+    # (a new page's frontmatter) comes back empty and must not be applied as
+    # a blank ("Frontmatter must be an object").
+    it "approves a new page that left its frontmatter out, through the form as shown" do
+      post "/api/pages", params: {page: {slug: "commercial", title: "Commercial", status: "draft", locale: "en",
+        blocks: [{"type" => "text", "data" => {"body" => "Hi"}}]}}, headers: token, as: :json
+      change = Approvals::Change.last
+      sign_in_as admin
+
+      shown = change.fields.to_h { |field| [field.name, field.json? ? field.proposed.to_json.then { it == "null" ? "" : it } : field.proposed.to_s] }
+      post approvals_change_approval_path(change), params: {fields: shown}
+
+      expect(Page.find_by(slug: "commercial")).to have_attributes(frontmatter: {}, status: "published", title: "Commercial")
+      expect(change.reload.state).to eq("approved")
+    end
+
     it "keeps the edits and says why when an edited JSON field doesn't parse" do
       live_page
       patch "/api/pages/about", params: {page: {title: "About us"}}, headers: token, as: :json

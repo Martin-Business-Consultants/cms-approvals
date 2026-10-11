@@ -48,6 +48,10 @@ module Approvals::Change::Decidable
         [name, typed[name] == "json" ? parse_json(name, value) : value.to_s.gsub("\r\n", "\n")]
       end
     end
+    # A field the proposal left out comes back from the form as it was shown
+    # (empty, for a new record's frontmatter): only a change to it counts, or
+    # the record would be given a blank it can't take.
+    edited.reject! { |name, value| !payload.key?(name) && Approvals::Change.normalize(value) == Approvals::Change.normalize(proposed[name]) }
     payload.merge(edited)
   end
 
