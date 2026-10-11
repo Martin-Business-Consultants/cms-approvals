@@ -1,7 +1,8 @@
 /* Approvals (cms-approvals): the list beside a word on what to do, and a
    change's comparison, live on the left and proposed on the right. Drawn
    with the admin's tokens (STYLE.md), so it follows Settings › Branding and
-   the dark theme. */
+   the dark theme. Served by the plugin (Approvals::StylesheetsController),
+   not the asset pipeline. */
 @layer components {
   /* Waiting | Decided, across the top of the list. */
   .approvals__tabs {

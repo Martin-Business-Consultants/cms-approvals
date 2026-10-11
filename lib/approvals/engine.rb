@@ -13,6 +13,8 @@ module Approvals
         # The admin's, under /cms (at the root on a core from before it).
         admin = proc do
           scope module: "approvals", as: "approvals" do
+            # Its stylesheet, served by the plugin (Approvals::StylesheetsController).
+            get "approvals/approvals.css", to: "stylesheets#show", as: :stylesheet, format: false
             # The list's bulk approve and reject.
             post "approvals/bulk", to: "bulk_decisions#create", as: :bulk_decisions
             resources :changes, path: "approvals", only: [:index, :show] do
@@ -32,7 +34,7 @@ module Approvals
     end
 
     config.to_prepare do
-      Cms::Plugins.register :approvals, name: "Approvals", version: "1.3.1", author: "Martin Business Consultants",
+      Cms::Plugins.register :approvals, name: "Approvals", version: "1.3.2", author: "Martin Business Consultants",
         enabled_by_default: false, requires: ">= 1.30",
         description: "Content changes made through the API, the cms CLI or MCP — an agent's work — wait in a " \
                      "list for a person to edit and approve, which puts them live."
@@ -44,7 +46,6 @@ module Approvals
       Cms::Plugins.permissions :approvals, "Approvals", %w[approvals:read approvals:decide],
         after: "Globals", defaults: {editor: %w[approvals:read approvals:decide], author: %w[approvals:read],
                                      agent: %w[approvals:read]}
-      Cms::Plugins.stylesheet :approvals, "approvals/approvals"
       Cms::Plugins.counts :approvals, pending_approvals: -> { Approvals::Change.pending.count }
 
       Cms::Plugins.api :approvals, "/api/approvals",

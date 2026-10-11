@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |spec|
   spec.name = "approvals"
-  spec.version = "1.3.1"
+  spec.version = "1.3.2"
   spec.summary = "Holds content changes made through the API, CLI or MCP for a person to edit and approve"
   spec.authors = ["Martin Business Consultants"]
   spec.files = Dir["{app,config,db,lib}/**/*"]

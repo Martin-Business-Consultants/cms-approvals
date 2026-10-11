@@ -291,4 +291,21 @@ RSpec.describe "The Approvals plugin", type: :request do
       expect(response).to have_http_status(:not_found)
     end
   end
+
+  describe "its stylesheet" do
+    it "links it on its screens and serves it itself, with nothing compiled" do
+      sign_in_as admin
+      get approvals_changes_path
+
+      href = Nokogiri::HTML5(response.body).at_css("link[rel=stylesheet][href^='#{approvals_stylesheet_path}']")&.[]("href")
+      expect(href).to be_present
+      expect(response.body).not_to include("/assets/approvals/")
+
+      get href
+      expect(response).to have_http_status(:ok)
+      expect(response.media_type).to eq("text/css")
+      expect(response.body).to include(".approvals__tabs")
+      expect(response.headers["Cache-Control"]).to include("public")
+    end
+  end
 end

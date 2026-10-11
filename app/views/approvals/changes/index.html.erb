@@ -1,4 +1,5 @@
 <% @page_title = "Approvals" %>
+<% content_for :head, approvals_stylesheet_tag %>
 
 <%= render "layouts/shared/page_header", title: @page_title,
       description: "Changes an agent made through the API, the cms CLI or MCP wait here. Open one to compare it with what’s live, edit it, and approve it." %>
