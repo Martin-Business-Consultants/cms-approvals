@@ -56,16 +56,53 @@ module Approvals::Change::Decidable
   end
 
   # One key of an object, as typed: JSON again for one that held more than a
-  # plain value (JSON-LD), and nothing for one emptied.
+  # plain value (JSON-LD), a whole number or yes/no again for a field that
+  # holds one (the form posts every key as text), and nothing for one emptied.
   def edited_key(name, key, before, typed)
     text = typed.to_s.gsub("\r\n", "\n")
-    return text unless before.is_a?(Hash) || before.is_a?(Array) || text.lstrip.start_with?("{", "[")
+    return scalar_key(name, key, key_type(name, key, before), text) unless before.is_a?(Hash) || before.is_a?(Array) || text.lstrip.start_with?("{", "[")
     return nil if text.strip.empty?
 
     JSON.parse(text)
   rescue JSON::ParserError => e
-    raise InvalidEdit, "#{(name == "seo") ? "SEO" : name.humanize} › #{self.class.key_label(key)} isn't valid JSON: #{e.message.lines.first.strip}"
+    raise InvalidEdit, "#{key_path(name, key)} isn't valid JSON: #{e.message.lines.first.strip}"
   end
+
+  def scalar_key(name, key, type, text)
+    case type
+    when "integer"
+      text.strip.empty? ? nil : Integer(text.strip, 10)
+    when "boolean"
+      text.strip.empty? ? nil : ActiveModel::Type::Boolean.new.cast(text.strip)
+    else
+      text
+    end
+  rescue ArgumentError
+    raise InvalidEdit, "#{key_path(name, key)} must be a whole number"
+  end
+
+  # The type a key holds: its field's, where the record has a schema for it
+  # (frontmatter, a global's data), or else what it held before.
+  def key_type(name, key, before)
+    field = schema_fields(name).find { it.is_a?(Hash) && it["name"].to_s == key.to_s }
+    return field["type"] if field
+
+    case before
+    when Integer then "integer"
+    when true, false then "boolean"
+    end
+  end
+
+  def schema_fields(name)
+    fields =
+      case [subject_type, name]
+      when %w[CollectionEntry frontmatter] then collection&.fields
+      when %w[Page frontmatter], %w[Global data] then subject&.fields
+      end
+    Array(fields)
+  end
+
+  def key_path(name, key) = "#{(name == "seo") ? "SEO" : name.humanize} › #{self.class.key_label(key)}"
 
   def parse_json(name, value)
     return value unless value.is_a?(String)

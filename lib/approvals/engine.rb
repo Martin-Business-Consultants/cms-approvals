@@ -32,7 +32,7 @@ module Approvals
     end
 
     config.to_prepare do
-      Cms::Plugins.register :approvals, name: "Approvals", version: "1.3.0", author: "Martin Business Consultants",
+      Cms::Plugins.register :approvals, name: "Approvals", version: "1.3.1", author: "Martin Business Consultants",
         enabled_by_default: false, requires: ">= 1.30",
         description: "Content changes made through the API, the cms CLI or MCP — an agent's work — wait in a " \
                      "list for a person to edit and approve, which puts them live."

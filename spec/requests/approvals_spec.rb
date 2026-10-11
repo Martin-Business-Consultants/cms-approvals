@@ -212,6 +212,41 @@ RSpec.describe "The Approvals plugin", type: :request do
       expect(change.reload.state).to eq("approved")
     end
 
+    # The form posts each frontmatter key as text; a number field must go
+    # live as a number ("Frontmatter order must be an integer"), and one
+    # emptied as nothing rather than "".
+    it "puts a number field live as a number, through the form as shown" do
+      Collection.create!(slug: "services", name: "Services", schema: {"fields" => [
+        {"name" => "summary", "type" => "string"}, {"name" => "order", "type" => "integer"}
+      ]})
+      post "/api/collections/services/entries", params: {entry: {slug: "porch", title: "Porch",
+        frontmatter: {summary: "Pots", order: 6}}}, headers: token, as: :json
+      sign_in_as admin
+
+      post approvals_change_approval_path(Approvals::Change.last), params: {fields: {frontmatter: {summary: "Pots", order: "6"}}}
+
+      expect(CollectionEntry.find_by(slug: "porch").frontmatter).to eq("summary" => "Pots", "order" => 6)
+
+      post "/api/collections/services/entries", params: {entry: {slug: "wreaths", title: "Wreaths",
+        frontmatter: {order: 7}}}, headers: token, as: :json
+      post approvals_change_approval_path(Approvals::Change.last), params: {fields: {frontmatter: {order: ""}}}
+
+      expect(CollectionEntry.find_by(slug: "wreaths").frontmatter["order"]).to be_nil
+    end
+
+    it "says why when a number field is edited into something that isn't one" do
+      Collection.create!(slug: "services", name: "Services", schema: {"fields" => [{"name" => "order", "type" => "integer"}]})
+      post "/api/collections/services/entries", params: {entry: {slug: "porch", title: "Porch", frontmatter: {order: 6}}},
+        headers: token, as: :json
+      sign_in_as admin
+
+      post approvals_change_approval_path(Approvals::Change.last), params: {fields: {frontmatter: {order: "sixth"}}}
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include("Frontmatter › Order must be a whole number")
+      expect(Approvals::Change.last).to be_pending
+    end
+
     it "keeps the edits and says why when an edited JSON field doesn't parse" do
       live_page
       patch "/api/pages/about", params: {page: {title: "About us"}}, headers: token, as: :json
