@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 json.extract! change, :id, :action, :state, :summary, :proposed_by, :created_at, :decided_at
 json.subject do
   json.type change.subject_type
