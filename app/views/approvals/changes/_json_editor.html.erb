@@ -1,0 +1,11 @@
+<%# locals: (label:, name:, typed:, open: false) %>
+<%# The whole of a JSON value as proposed, to change by hand if it needs it,
+    folded away under the parts that changed. %>
+<div class="approvals__label text-gray-500"><%= label %>, whole</div>
+<div class="approvals__cell approvals__cell--live text-xs text-gray-500">Only needed to change the proposal by hand.</div>
+<div class="approvals__cell">
+  <%= tag.details open: open do %>
+    <summary class="cursor-pointer text-sm font-medium text-gray-700">Edit as JSON</summary>
+    <%= text_area_tag name, typed, rows: (typed.to_s.lines.size + 1).clamp(6, 30), class: "mt-2 w-full font-mono text-xs", aria: { label: label } %>
+  <% end %>
+</div>

@@ -100,6 +100,49 @@ RSpec.describe "The Approvals plugin", type: :request do
       expect(AuditLog.where(action: "approval.approved")).to exist
     end
 
+    it "shows only what changed inside the blocks, the words taken out and put in marked" do
+      blocks = [
+        {"id" => "b1", "type" => "text", "data" => {"body" => "Untouched paragraph that stays the same"}},
+        {"id" => "b2", "type" => "text", "data" => {"body" => "We design gardens for shade"}}
+      ]
+      live_page(status: "draft", blocks: blocks)
+      edited = blocks.deep_dup.tap { it[1]["data"]["body"] = "We design native gardens for shade" }
+      patch "/api/pages/about", params: {page: {blocks: edited}}, headers: token, as: :json
+      sign_in_as admin
+
+      get approvals_change_path(Approvals::Change.last)
+      page = Nokogiri::HTML(response.body)
+
+      expect(page.css(".approvals__label").map(&:text)).to include("Blocks › 2 · Text › Body")
+      expect(page.css(".approvals__value").map(&:text).join).not_to include("Untouched paragraph")
+      expect(page.at(".approvals__value ins").text).to eq("native ")
+      expect(response.body).to include("Edit as JSON")
+    end
+
+    it "approves or rejects the ticked changes at once, and leaves what can't go" do
+      live_page(status: "draft")
+      Global.create!(slug: "footer", name: "Footer", schema: {"fields" => []}, data: {})
+      patch "/api/pages/about", params: {page: {title: "About us"}}, headers: token, as: :json
+      delete "/api/globals/footer", headers: token
+      first, second = Approvals::Change.pending.order(:id).to_a
+      sign_in_as admin
+
+      get approvals_changes_path
+      expect(response.body).to include("Approve ticked", "Reject ticked", %(name="ids[]"))
+
+      post approvals_bulk_decisions_path, params: {decision: "approve", ids: [first.id, second.id]}
+      expect(first.reload.state).to eq("approved")
+      expect(second.reload.state).to eq("approved")
+      expect(Page.find_by(slug: "about").title).to eq("About us")
+      expect(Global.exists?(slug: "footer")).to be(false)
+      expect(flash[:notice]).to eq("Approved 2 changes.")
+
+      patch "/api/pages/about", params: {page: {title: "Changed again"}}, headers: token, as: :json
+      post approvals_bulk_decisions_path, params: {decision: "reject", ids: [Approvals::Change.last.id]}
+      expect(Approvals::Change.last.state).to eq("rejected")
+      expect(Page.find_by(slug: "about").title).to eq("About us")
+    end
+
     it "lists the changes beside a word on what to do, and compares an SEO change key by key" do
       page = live_page
       page.update!(seo: {"meta_title" => "About", "meta_description" => "Old words"})

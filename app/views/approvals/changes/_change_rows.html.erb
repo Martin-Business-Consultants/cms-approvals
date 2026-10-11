@@ -1,0 +1,14 @@
+<%# locals: (rows:) %>
+<%# The parts of a JSON value that changed (Field#changes), a row each: what
+    it was, with the words taken out marked, and what's proposed, with the
+    words put in marked. A part added or removed whole shows as JSON. %>
+<% rows.each do |row_label, live, proposed| %>
+  <%# herb:key row_label %>
+  <div class="approvals__label"><%= row_label %></div>
+  <div class="<%= class_names("approvals__cell approvals__cell--live", "approvals__cell--removed": !live.nil?) %>">
+    <%= render "approvals/changes/diff_value", value: live, other: proposed, side: :live %>
+  </div>
+  <div class="<%= class_names("approvals__cell", "approvals__cell--added": !proposed.nil?) %>">
+    <%= render "approvals/changes/diff_value", value: proposed, other: live, side: :proposed %>
+  </div>
+<% end %>

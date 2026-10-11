@@ -13,6 +13,8 @@ module Approvals
         # The admin's, under /cms (at the root on a core from before it).
         admin = proc do
           scope module: "approvals", as: "approvals" do
+            # The list's bulk approve and reject.
+            post "approvals/bulk", to: "bulk_decisions#create", as: :bulk_decisions
             resources :changes, path: "approvals", only: [:index, :show] do
               scope module: :changes do
                 resource :approval, only: :create
@@ -30,7 +32,7 @@ module Approvals
     end
 
     config.to_prepare do
-      Cms::Plugins.register :approvals, name: "Approvals", version: "1.1.5", author: "Martin Business Consultants",
+      Cms::Plugins.register :approvals, name: "Approvals", version: "1.2.0", author: "Martin Business Consultants",
         enabled_by_default: false, requires: ">= 1.9",
         description: "Content changes made through the API, the cms CLI or MCP — an agent's work — wait in a " \
                      "list for a person to edit and approve, which puts them live."

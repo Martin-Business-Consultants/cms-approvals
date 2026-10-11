@@ -1,8 +1,9 @@
 <% @page_title = "Approval" %>
 <%# One change in the two columns: what's live now on the left, the proposal
     on the right, a row per field that differs (an SEO panel or a set of
-    fields, key by key), the proposal editable while it waits. Back, at the
-    top right, returns to the list. %>
+    fields, key by key; within blocks or JSON-LD, only the parts that
+    changed), words taken out and put in marked, the proposal editable while
+    it waits. Back, at the top right, returns to the list. %>
 <% edits = @edits || {} %>
 <% decidable = @change.pending? && Current.user.can?("approvals:decide") && Current.user.can?(@change.capability_to_decide) %>
 <% deleting = @change.action == "destroy" %>
@@ -20,7 +21,7 @@
       description: "From #{@change.proposed_by}, #{time_ago_in_words(@change.created_at)} ago · #{@change.state.capitalize}" +
         (@change.decided_by ? " by #{@change.decided_by.name.presence || @change.decided_by.email}" : "") %>
 
-<% if @change.pending? && @change.stale? %>
+<% if @change.pending? && @change.stale? then %>
   <div class="<%= ui(:notice, :red, "mb-4") %>" role="alert">
     The live <%= @change.kind %> changed after this was proposed. The left column is what’s there now; approving replaces it with the right.
   </div>
@@ -47,70 +48,90 @@
     <%= form_with url: approvals_change_approval_path(@change), id: "approval_form", class: "contents" do %>
       <% shown.each do |field| %>
         <%# herb:key field.name %>
-        <% if field.by_key? && !deleting %>
+        <% if field.by_key? && !deleting then %>
           <% field.keys.select { |row| row[4] || creating }.each do |key, key_label, live, proposed, changed, nested| %>
             <%# herb:key key %>
-            <% live_classes = class_names("approvals__cell approvals__cell--live", "approvals__cell--removed": changed && !creating && live.present?) %>
-            <% proposed_classes = class_names("approvals__cell", "approvals__cell--added": changed && proposed.present?) %>
-            <div class="approvals__label"><%= key_label %></div>
-            <div class="<%= live_classes %>">
-              <% if creating %>
-                <span class="text-sm text-gray-400">New <%= @change.kind %></span>
-              <% else %>
-                <%= render "approvals/changes/value", value: live, json: nested %>
-              <% end %>
-            </div>
-            <div class="<%= proposed_classes %>">
+            <% if nested && !creating then %>
+              <%# Only the parts of it that changed; the whole of it, to edit, folded away. %>
+              <%= render "approvals/changes/change_rows", rows: field.changes(within: key_label, live: live, proposed: proposed) %>
               <% if decidable then %>
-                <% typed = edits.dig(field.name, key) || (nested ? (proposed.nil? ? "" : JSON.pretty_generate(proposed)) : proposed.to_s) %>
-                <% height = nested ? (typed.lines.size + 1).clamp(4, 30) : (typed.length.fdiv(60).ceil + 1).clamp(2, 8) %>
-                <% input_classes = class_names("w-full", "font-mono text-xs": nested) %>
-                <%= text_area_tag "fields[#{field.name}][#{key}]", typed, rows: height, class: input_classes, aria: { label: key_label } %>
-              <% else %>
-                <%= render "approvals/changes/value", value: proposed, json: nested %>
+                <% typed = edits.dig(field.name, key) || (proposed.nil? ? "" : JSON.pretty_generate(proposed)) %>
+                <%= render "approvals/changes/json_editor", label: key_label, name: "fields[#{field.name}][#{key}]", typed: typed, open: edits.dig(field.name, key).present? %>
               <% end %>
-            </div>
+            <% else %>
+              <% live_classes = class_names("approvals__cell approvals__cell--live", "approvals__cell--removed": changed && !creating && live.present?) %>
+              <% proposed_classes = class_names("approvals__cell", "approvals__cell--added": changed && proposed.present?) %>
+              <div class="approvals__label"><%= key_label %></div>
+              <div class="<%= live_classes %>">
+                <% if creating then %>
+                  <span class="text-sm text-gray-400">New <%= @change.kind %></span>
+                <% else %>
+                  <%= render "approvals/changes/diff_value", value: live, other: proposed, side: :live %>
+                <% end %>
+              </div>
+              <div class="<%= proposed_classes %>">
+                <% if decidable then %>
+                  <% typed = edits.dig(field.name, key) || (nested ? (proposed.nil? ? "" : JSON.pretty_generate(proposed)) : proposed.to_s) %>
+                  <% height = nested ? (typed.lines.size + 1).clamp(4, 30) : (typed.length.fdiv(60).ceil + 1).clamp(2, 8) %>
+                  <% input_classes = class_names("w-full", "font-mono text-xs": nested) %>
+                  <%= text_area_tag "fields[#{field.name}][#{key}]", typed, rows: height, class: input_classes, aria: { label: key_label } %>
+                <% else %>
+                  <%= render "approvals/changes/diff_value", value: proposed, other: live, side: :proposed %>
+                <% end %>
+              </div>
+            <% end %>
+          <% end %>
+        <% elsif field.json? && !creating && !deleting then %>
+          <%# A list or object compared whole (the blocks): only what changed in it. %>
+          <%= render "approvals/changes/change_rows", rows: field.changes %>
+          <% if decidable then %>
+            <% typed = edits.fetch(field.name) { field.proposed.nil? ? "" : JSON.pretty_generate(field.proposed) } %>
+            <%= render "approvals/changes/json_editor", label: field.label, name: "fields[#{field.name}]", typed: typed, open: edits.key?(field.name) %>
           <% end %>
         <% else %>
           <% live_classes = class_names("approvals__cell approvals__cell--live", "approvals__cell--removed": field.changed? && !creating && field.live.present?) %>
           <% proposed_classes = class_names("approvals__cell", "approvals__cell--added": field.changed? && !deleting && field.proposed.present?) %>
           <div class="approvals__label"><%= field.label %></div>
           <div class="<%= live_classes %>">
-            <% if creating %>
+            <% if creating then %>
               <span class="text-sm text-gray-400">New <%= @change.kind %></span>
-            <% else %>
+            <% elsif field.json? || deleting then %>
               <%= render "approvals/changes/value", value: field.live, json: field.json? %>
+            <% else %>
+              <%= render "approvals/changes/diff_value", value: field.live, other: field.proposed, side: :live %>
             <% end %>
           </div>
           <div class="<%= proposed_classes %>">
-            <% if deleting %>
+            <% if deleting then %>
               <span class="text-sm text-red-700">Deleted: it goes to the trash</span>
             <% elsif decidable then %>
               <% typed = edits.fetch(field.name) { field.json? ? (field.proposed.nil? ? "" : JSON.pretty_generate(field.proposed)) : field.proposed.to_s } %>
               <% height = (typed.to_s.lines.size + 1).clamp(4, 24) %>
-              <% if field.kind == "text" %>
+              <% if field.kind == "text" then %>
                 <%= text_field_tag "fields[#{field.name}]", typed, class: "w-full", aria: { label: field.label } %>
               <% else %>
                 <%= text_area_tag "fields[#{field.name}]", typed, rows: height,
                       class: class_names("w-full", "font-mono text-xs": field.json?), aria: { label: field.label } %>
               <% end %>
+            <% elsif field.json? then %>
+              <%= render "approvals/changes/value", value: field.proposed, json: true %>
             <% else %>
-              <%= render "approvals/changes/value", value: field.proposed, json: field.json? %>
+              <%= render "approvals/changes/diff_value", value: field.proposed, other: field.live, side: :proposed %>
             <% end %>
           </div>
         <% end %>
       <% end %>
     <% end %>
 
-    <% if shown.none? %>
+    <% if shown.none? then %>
       <p class="approvals__note">The proposal is the same as what’s live.</p>
-    <% elsif unchanged.positive? %>
+    <% elsif unchanged.positive? then %>
       <p class="approvals__note"><%= pluralize(unchanged, "other field") %> unchanged.</p>
     <% end %>
-    <% if @change.other_attributes.any? && !deleting %>
+    <% if @change.other_attributes.any? && !deleting then %>
       <p class="approvals__note">Also sets <%= @change.other_attributes.keys.map(&:humanize).to_sentence.downcase %>, as proposed.</p>
     <% end %>
-    <% if @change.pending? && !decidable %>
+    <% if @change.pending? && !decidable then %>
       <p class="approvals__note">Your role can’t decide this: it takes <code>approvals:decide</code> and <code><%= @change.capability_to_decide %></code>.</p>
     <% end %>
   </div>

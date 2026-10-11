@@ -103,3 +103,18 @@
     white-space: pre-wrap;
   }
 }
+
+/* Words taken out and put in, inside a changed text. */
+@layer components {
+  .approvals__value del {
+    background-color: var(--color-red-100);
+    color: var(--color-red-800);
+    text-decoration: line-through;
+  }
+
+  .approvals__value ins {
+    background-color: var(--color-green-100);
+    color: var(--color-green-800);
+    text-decoration: none;
+  }
+}
