@@ -2,7 +2,7 @@
 <%# One side of a changed part: text with the other side's differences
     marked (approvals_word_diff), anything else as JSON, — for nothing. %>
 <% if value.nil? || value == "" then %>
-  <span class="text-sm text-gray-400">—</span>
+  <span class="text-faint">—</span>
 <% elsif value.is_a?(String) && (other.is_a?(String) || other.nil?) then %>
   <% live_text = side == :live ? value : other.to_s %>
   <% proposed_text = side == :live ? other.to_s : value %>

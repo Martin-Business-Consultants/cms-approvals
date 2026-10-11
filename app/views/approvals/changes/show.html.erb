@@ -13,7 +13,7 @@
 <% unchanged = fields.size - shown.size %>
 
 <% content_for :page_actions do %>
-  <%= link_to approvals_changes_path(state: (@change.pending? ? nil : "decided")), class: ui(:button, :small) do %>
+  <%= link_to approvals_changes_path(state: (@change.pending? ? nil : "decided")), class: "btn btn--sm" do %>
     <span aria-hidden="true">←</span> Back to the list
   <% end %>
 <% end %>
@@ -22,12 +22,12 @@
         (@change.decided_by ? " by #{@change.decided_by.name.presence || @change.decided_by.email}" : "") %>
 
 <% if @change.pending? && @change.stale? then %>
-  <div class="<%= ui(:notice, :red, "mb-4") %>" role="alert">
+  <div class="notice notice--danger" role="alert">
     The live <%= @change.kind %> changed after this was proposed. The left column is what’s there now; approving replaces it with the right.
   </div>
 <% end %>
 
-<div class="<%= ui(:panel) %>">
+<div class="panel">
   <div class="approvals__grid">
     <div class="approvals__head">Live now</div>
     <div class="approvals__head">
@@ -38,9 +38,9 @@
         <% end %>
       </span>
       <% if decidable then %>
-        <span class="flex items-center gap-2">
-          <%= button_to "Reject", approvals_change_rejection_path(@change), class: ui(:button, :small, "text-red-700"), form_class: "contents" %>
-          <button type="submit" form="approval_form" class="<%= ui(:button, :primary, :small) %>"><%= deleting ? "Approve and delete" : "Approve and put live" %></button>
+        <span class="row">
+          <%= button_to "Reject", approvals_change_rejection_path(@change), class: "btn btn--danger btn--sm", form_class: "contents" %>
+          <button type="submit" form="approval_form" class="btn btn--primary btn--sm"><%= deleting ? "Approve and delete" : "Approve and put live" %></button>
         </span>
       <% end %>
     </div>
@@ -64,7 +64,7 @@
               <div class="approvals__label"><%= key_label %></div>
               <div class="<%= live_classes %>">
                 <% if creating then %>
-                  <span class="text-sm text-gray-400">New <%= @change.kind %></span>
+                  <span class="text-faint">New <%= @change.kind %></span>
                 <% else %>
                   <%= render "approvals/changes/diff_value", value: live, other: proposed, side: :live %>
                 <% end %>
@@ -73,7 +73,7 @@
                 <% if decidable then %>
                   <% typed = edits.dig(field.name, key) || (nested ? (proposed.nil? ? "" : JSON.pretty_generate(proposed)) : proposed.to_s) %>
                   <% height = nested ? (typed.lines.size + 1).clamp(4, 30) : (typed.length.fdiv(60).ceil + 1).clamp(2, 8) %>
-                  <% input_classes = class_names("w-full", "font-mono text-xs": nested) %>
+                  <% input_classes = class_names("full-width", "text-mono text-small": nested) %>
                   <%= text_area_tag "fields[#{field.name}][#{key}]", typed, rows: height, class: input_classes, aria: { label: key_label } %>
                 <% else %>
                   <%= render "approvals/changes/diff_value", value: proposed, other: live, side: :proposed %>
@@ -94,7 +94,7 @@
           <div class="approvals__label"><%= field.label %></div>
           <div class="<%= live_classes %>">
             <% if creating then %>
-              <span class="text-sm text-gray-400">New <%= @change.kind %></span>
+              <span class="text-faint">New <%= @change.kind %></span>
             <% elsif field.json? || deleting then %>
               <%= render "approvals/changes/value", value: field.live, json: field.json? %>
             <% else %>
@@ -103,15 +103,15 @@
           </div>
           <div class="<%= proposed_classes %>">
             <% if deleting then %>
-              <span class="text-sm text-red-700">Deleted: it goes to the trash</span>
+              <span class="text-danger">Deleted: it goes to the trash</span>
             <% elsif decidable then %>
               <% typed = edits.fetch(field.name) { field.json? ? (field.proposed.nil? ? "" : JSON.pretty_generate(field.proposed)) : field.proposed.to_s } %>
               <% height = (typed.to_s.lines.size + 1).clamp(4, 24) %>
               <% if field.kind == "text" then %>
-                <%= text_field_tag "fields[#{field.name}]", typed, class: "w-full", aria: { label: field.label } %>
+                <%= text_field_tag "fields[#{field.name}]", typed, class: "full-width", aria: { label: field.label } %>
               <% else %>
                 <%= text_area_tag "fields[#{field.name}]", typed, rows: height,
-                      class: class_names("w-full", "font-mono text-xs": field.json?), aria: { label: field.label } %>
+                      class: class_names("full-width", "text-mono text-small": field.json?), aria: { label: field.label } %>
               <% end %>
             <% elsif field.json? then %>
               <%= render "approvals/changes/value", value: field.proposed, json: true %>

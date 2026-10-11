@@ -1,7 +1,7 @@
 <%# locals: (value:, json: false) %>
 <%# One side's value, as it reads: — for nothing. %>
 <% if value.blank? && value != false %>
-  <span class="text-sm text-gray-400">—</span>
+  <span class="text-faint">—</span>
 <% else %>
   <pre class="approvals__value"><%= json ? JSON.pretty_generate(value) : value.to_s %></pre>
 <% end %>
